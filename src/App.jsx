@@ -45,12 +45,12 @@ export default function App() {
   };
 
   // App Version & Auto-Updater State
-  const [appVersion, setAppVersion] = useState('1.1.1');
+  const [appVersion, setAppVersion] = useState('1.1.2');
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [updateState, setUpdateState] = useState({
     status: 'idle',
     version: '',
-    currentVersion: '1.1.1',
+    currentVersion: '1.1.2',
     percent: 0,
     speed: 0,
     transferred: 0,

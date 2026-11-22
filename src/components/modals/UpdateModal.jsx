@@ -22,7 +22,7 @@ export default function UpdateModal({
   const {
     status = 'idle', // 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error'
     version = '',
-    currentVersion = '1.1.1',
+    currentVersion = '1.1.2',
     percent = 0,
     speed = 0,
     transferred = 0,

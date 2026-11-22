@@ -22,7 +22,7 @@ export default function Sidebar({
   cartCount = 0,
   orderHistoryCount = 0,
   taxSummary = null,
-  appVersion = '1.1.1',
+  appVersion = '1.1.2',
   onCheckUpdate = () => {},
   isCheckingUpdate = false,
   storeSettings = null,

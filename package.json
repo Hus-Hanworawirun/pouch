@@ -1,6 +1,6 @@
 {
   "name": "pouch",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Pouch - Micro ERP & Retail System",
   "main": "electron-main.js",
   "scripts": {
@@ -50,7 +50,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Pouch"
+      "shortcutName": "Pouch",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
     },
     "publish": [
       {
