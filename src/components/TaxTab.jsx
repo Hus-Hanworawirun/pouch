@@ -20,7 +20,8 @@ export default function TaxTab({
   expenses = [],
   onDeleteExpense,
   onSaveExpense,
-  onExportCsv
+  onExportCsv,
+  showAlert
 }) {
   const [localExpense, setLocalExpense] = useState({
     expense_date: new Date().toISOString().slice(0, 10),
@@ -34,7 +35,8 @@ export default function TaxTab({
   const handleInlineExpenseSubmit = async (e) => {
     e.preventDefault();
     if (!localExpense.title || !localExpense.amount) {
-      alert('กรุณากรอกชื่อรายการและจำนวนเงิน');
+      if (showAlert) showAlert('กรุณากรอกชื่อรายการและจำนวนเงิน', 'warning');
+      else alert('กรุณากรอกชื่อรายการและจำนวนเงิน');
       return;
     }
     await onSaveExpense(localExpense);

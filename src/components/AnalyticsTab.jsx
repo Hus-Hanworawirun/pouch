@@ -25,7 +25,8 @@ export default function AnalyticsTab({
   expenses = [],
   reportTimeframe = 'today',
   setReportTimeframe,
-  onViewReceipt
+  onViewReceipt,
+  showAlert
 }) {
   const [activeSubTab, setActiveSubTab] = useState('orders'); // 'orders' or 'stock_logs'
   const [search, setSearch] = useState('');
@@ -290,7 +291,8 @@ export default function AnalyticsTab({
   // Export CSV with UTF-8 BOM
   const handleExportCsv = () => {
     if (filteredOrders.length === 0) {
-      alert('ไม่มีข้อมูลออเดอร์เพื่อส่งออก');
+      if (showAlert) showAlert('ไม่มีข้อมูลออเดอร์เพื่อส่งออก', 'info');
+      else alert('ไม่มีข้อมูลออเดอร์เพื่อส่งออก');
       return;
     }
     const headers = [

@@ -15,7 +15,8 @@ export default function StoreSettingsModal({
   isOpen,
   onClose,
   settings,
-  onSaveSettings
+  onSaveSettings,
+  showAlert
 }) {
   const [form, setForm] = useState({
     store_name: 'Pouch',
@@ -57,7 +58,8 @@ export default function StoreSettingsModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.store_name.trim()) {
-      alert('กรุณากรอกชื่อร้านค้า');
+      if (showAlert) showAlert('กรุณากรอกชื่อร้านค้า', 'warning');
+      else alert('กรุณากรอกชื่อร้านค้า');
       return;
     }
 
@@ -78,7 +80,8 @@ export default function StoreSettingsModal({
         onClose();
       }, 700);
     } catch (err) {
-      alert('บันทึกข้อมูลไม่สำเร็จ: ' + err.message);
+      if (showAlert) showAlert('บันทึกข้อมูลไม่สำเร็จ: ' + err.message, 'error');
+      else alert('บันทึกข้อมูลไม่สำเร็จ: ' + err.message);
     } finally {
       setIsSaving(false);
     }

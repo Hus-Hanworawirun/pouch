@@ -1,5 +1,5 @@
 {
-  "name": "copper-golem-pos",
+  "name": "pouch",
   "version": "1.1.0",
   "description": "Pouch - Micro ERP & Retail System",
   "main": "electron-main.js",

@@ -2,6 +2,9 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
+// Explicitly set application name
+app.setName('Pouch');
+
 let mainWindow;
 
 // Configure Auto-Updater

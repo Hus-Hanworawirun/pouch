@@ -11,6 +11,8 @@ import BarcodeModal from './components/modals/BarcodeModal';
 import ReceiptModal from './components/modals/ReceiptModal';
 import UpdateModal from './components/modals/UpdateModal';
 import StoreSettingsModal from './components/modals/StoreSettingsModal';
+import AlertModal from './components/modals/AlertModal';
+import { normalizeBarcode, getCharFromKeyEvent } from './utils/barcode';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'inventory', 'accounting', 'receipts', 'tax'
@@ -18,6 +20,29 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Custom Alert Modal State
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    type: 'warning',
+    title: '',
+    message: '',
+    detail: ''
+  });
+
+  const showAlert = (message, type = 'warning', title = '', detail = '') => {
+    setAlertModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      detail
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // App Version & Auto-Updater State
   const [appVersion, setAppVersion] = useState('1.1.0');
@@ -279,15 +304,15 @@ export default function App() {
     try {
       const res = await fetch('/api/system/seed', { method: 'POST' });
       if (res.ok) {
-        alert('โหลดข้อมูลตัวอย่างสำเร็จ!');
+        showAlert('โหลดข้อมูลตัวอย่างสำเร็จ!', 'success', 'โหลดข้อมูลตัวอย่าง');
         fetchProducts();
         fetchAccountingData();
         fetchTaxData();
       } else {
-        alert('เกิดข้อผิดพลาดในการโหลดข้อมูลตัวอย่าง');
+        showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลตัวอย่าง', 'error');
       }
     } catch (err) {
-      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      showAlert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
     }
   };
 
@@ -297,14 +322,14 @@ export default function App() {
     try {
       const res = await fetch('/api/system/clear', { method: 'POST' });
       if (res.ok) {
-        alert('ล้างฐานข้อมูลเรียบร้อยแล้ว');
+        showAlert('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success', 'ล้างข้อมูลระบบ');
         setCart([]);
         fetchProducts();
         fetchAccountingData();
         fetchTaxData();
       }
     } catch (err) {
-      alert('ไม่สามารถล้างข้อมูลได้');
+      showAlert('ไม่สามารถล้างข้อมูลได้', 'error');
     }
   };
 
@@ -324,14 +349,17 @@ export default function App() {
       }
       lastKeyTime = currentTime;
 
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
         if (buffer.length >= 3) {
           const scannedCode = buffer.trim();
           handleScannedBarcode(scannedCode);
           buffer = '';
         }
-      } else if (e.key.length === 1) {
-        buffer += e.key;
+      } else {
+        const char = getCharFromKeyEvent(e);
+        if (char && char.length === 1) {
+          buffer += char;
+        }
       }
     };
 
@@ -340,19 +368,30 @@ export default function App() {
   }, [products, cart]);
 
   const handleScannedBarcode = (barcode) => {
-    const product = products.find(p => p.barcode === barcode);
+    const rawBarcode = (barcode || '').trim();
+    const cleanBarcode = normalizeBarcode(rawBarcode);
+    const product = products.find(p =>
+      p.barcode === cleanBarcode ||
+      (p.barcode && normalizeBarcode(p.barcode) === cleanBarcode) ||
+      p.barcode === rawBarcode
+    );
     if (product) {
       playBeep();
       addToCart(product);
     } else {
-      alert(`ไม่พบสินค้าที่มีบาร์โค้ด: ${barcode}`);
+      showAlert(
+        `ไม่พบสินค้าที่มีบาร์โค้ด: ${cleanBarcode}`,
+        'warning',
+        'ไม่พบบาร์โค้ดสินค้า',
+        rawBarcode !== cleanBarcode ? `รหัสสแกนไทย: ${rawBarcode} → แปลงเป็น: ${cleanBarcode}` : ''
+      );
     }
   };
 
   // Cart Operations
   const addToCart = (product) => {
     if (product.stock_qty <= 0) {
-      alert(`สินค้า "${product.name}" หมดสต็อก!`);
+      showAlert(`สินค้า "${product.name}" หมดสต็อก!`, 'warning', 'สินค้าหมดสต็อก');
       return;
     }
 
@@ -360,7 +399,7 @@ export default function App() {
       const existing = prev.find(item => item.product_id === product.id);
       if (existing) {
         if (existing.quantity >= product.stock_qty) {
-          alert(`สินค้ามีในสต็อกเพียง ${product.stock_qty} ชิ้น`);
+          showAlert(`สินค้ามีในสต็อกเพียง ${product.stock_qty} ชิ้น`, 'warning', 'สต็อกไม่เพียงพอ');
           return prev;
         }
         return prev.map(item =>
@@ -393,7 +432,7 @@ export default function App() {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
             if (prod && newQty > prod.stock_qty) {
-              alert(`สต็อกมีเพียง ${prod.stock_qty} ชิ้น`);
+              showAlert(`สต็อกมีเพียง ${prod.stock_qty} ชิ้น`, 'warning', 'สต็อกไม่เพียงพอ');
               return item;
             }
             return {
@@ -420,7 +459,7 @@ export default function App() {
   // Checkout Submission (Direct checkout & optional cash tender calculation)
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) {
-      alert('ตะกร้าว่างเปล่า กรุณาเพิ่มสินค้าก่อนคิดเงิน');
+      showAlert('ตะกร้าว่างเปล่า กรุณาเพิ่มสินค้าก่อนคิดเงิน', 'warning', 'ตะกร้าว่าง');
       return;
     }
 
@@ -462,7 +501,7 @@ export default function App() {
       fetchAccountingData();
       fetchTaxData();
     } catch (err) {
-      alert(`เกิดข้อผิดพลาดในการคิดเงิน: ${err.message}`);
+      showAlert(`เกิดข้อผิดพลาดในการคิดเงิน: ${err.message}`, 'error', 'คิดเงินไม่สำเร็จ');
     }
   };
 
@@ -600,7 +639,7 @@ export default function App() {
       fetchProducts();
       fetchAccountingData();
     } catch (err) {
-      alert(`ข้อผิดพลาด: ${err.message}`);
+      showAlert(`ข้อผิดพลาด: ${err.message}`, 'error', 'บันทึกสินค้าไม่สำเร็จ');
     }
   };
 
@@ -613,10 +652,10 @@ export default function App() {
         fetchProducts();
         fetchAccountingData();
       } else {
-        alert('ไม่สามารถลบสินค้าได้');
+        showAlert('ไม่สามารถลบสินค้าได้', 'error');
       }
     } catch (err) {
-      alert('เกิดข้อผิดพลาดในการลบสินค้า');
+      showAlert('เกิดข้อผิดพลาดในการลบสินค้า', 'error');
     }
   };
 
@@ -654,7 +693,7 @@ export default function App() {
       fetchProducts();
       fetchAccountingData();
     } catch (err) {
-      alert(`ข้อผิดพลาด: ${err.message}`);
+      showAlert(`ข้อผิดพลาด: ${err.message}`, 'error', 'เติมสต็อกไม่สำเร็จ');
     }
   };
 
@@ -678,7 +717,7 @@ export default function App() {
         fetchAccountingData();
       }
     } catch (err) {
-      alert('ไม่สามารถบันทึกค่าใช้จ่ายได้');
+      showAlert('ไม่สามารถบันทึกค่าใช้จ่ายได้', 'error');
     }
   };
 
@@ -691,14 +730,14 @@ export default function App() {
         fetchAccountingData();
       }
     } catch (err) {
-      alert('ไม่สามารถลบค่าใช้จ่ายได้');
+      showAlert('ไม่สามารถลบค่าใช้จ่ายได้', 'error');
     }
   };
 
   // Export Tax Por Sor 10 CSV
   const handleExportTaxCsv = () => {
     if (!taxCashFlow?.rows || taxCashFlow.rows.length === 0) {
-      alert('ไม่มีข้อมูลเงินสดรับจ่ายเพื่อส่งออก');
+      showAlert('ไม่มีข้อมูลเงินสดรับจ่ายเพื่อส่งออก', 'info');
       return;
     }
     const headers = ['ลำดับ', 'วัน/เดือน/ปี', 'รายการ / คำอธิบาย', 'เลขที่เอกสารอ้างอิง', 'เงินสดรับ (บาท)', 'เงินสดจ่าย (บาท)', 'คงเหลือ (บาท)', 'หมายเหตุ'];
@@ -778,6 +817,7 @@ export default function App() {
               onDeleteProduct={handleDeleteProduct}
               onOpenRestock={openRestockModal}
               onOpenBarcode={openBarcodeModal}
+              showAlert={showAlert}
             />
           )}
 
@@ -790,6 +830,7 @@ export default function App() {
               reportTimeframe={reportTimeframe}
               setReportTimeframe={setReportTimeframe}
               onViewReceipt={(ord) => setSelectedReceiptOrder(ord)}
+              showAlert={showAlert}
             />
           )}
 
@@ -798,6 +839,7 @@ export default function App() {
               orderHistory={orderHistory}
               onPrintThermal={(ord) => setSelectedReceiptOrder(ord)}
               storeSettings={storeSettings}
+              showAlert={showAlert}
             />
           )}
 
@@ -813,6 +855,7 @@ export default function App() {
               onSaveExpense={handleSaveExpense}
               onDeleteExpense={handleDeleteExpense}
               onExportCsv={handleExportTaxCsv}
+              showAlert={showAlert}
             />
           )}
         </main>
@@ -873,6 +916,17 @@ export default function App() {
         onClose={() => setIsStoreSettingsOpen(false)}
         settings={storeSettings}
         onSaveSettings={handleSaveStoreSettings}
+        showAlert={showAlert}
+      />
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        detail={alertModal.detail}
+        storeSettings={storeSettings}
       />
     </div>
   );

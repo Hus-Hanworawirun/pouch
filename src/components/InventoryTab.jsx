@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { normalizeBarcode } from '../utils/barcode';
 import {
   FileDown,
   Printer,
@@ -23,7 +24,8 @@ export default function InventoryTab({
   onOpenEditProduct,
   onDeleteProduct,
   onOpenRestock,
-  onOpenBarcode
+  onOpenBarcode,
+  showAlert
 }) {
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
@@ -44,12 +46,13 @@ export default function InventoryTab({
   // Categories
   const categories = ['all', ...Array.from(new Set(products.map(p => p.category || 'ทั่วไป')))];
 
-  // Filtered Products
+  // Filtered Products (Supports Thai-layout scanned barcodes)
+  const cleanQ = normalizeBarcode(search);
   const filteredProducts = products.filter((p) => {
     const q = search.toLowerCase();
     const matchesSearch =
       p.name?.toLowerCase().includes(q) ||
-      (p.barcode && p.barcode.includes(q)) ||
+      (p.barcode && (p.barcode.includes(search) || (cleanQ && p.barcode.includes(cleanQ)))) ||
       (p.category && p.category.toLowerCase().includes(q));
     const matchesCat = selectedCat === 'all' || p.category === selectedCat;
     return matchesSearch && matchesCat;
@@ -58,7 +61,8 @@ export default function InventoryTab({
   // Export CSV with UTF-8 BOM
   const handleExportCsv = () => {
     if (products.length === 0) {
-      alert('ไม่มีข้อมูลสินค้าเพื่อส่งออก');
+      if (showAlert) showAlert('ไม่มีข้อมูลสินค้าเพื่อส่งออก', 'info');
+      else alert('ไม่มีข้อมูลสินค้าเพื่อส่งออก');
       return;
     }
     const headers = ['รหัสสินค้า', 'ชื่อสินค้า', 'หมวดหมู่', 'บาร์โค้ด', 'ต้นทุนต่อชิ้น', 'ราคาขาย', 'กำไรต่อชิ้น', 'สต็อกคงเหลือ', 'จุดสั่งซื้อซ้ำ'];

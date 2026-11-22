@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { normalizeBarcode } from '../utils/barcode';
 import {
   Search,
   X,
@@ -50,11 +51,16 @@ export default function CashierTab({
   const receivedNum = parseFloat(cashReceived) || 0;
   const changeDue = receivedNum >= totalAmount ? Number((receivedNum - totalAmount).toFixed(2)) : 0;
 
-  // Filtered Products
+  // Filtered Products (Supports Thai-layout scanned barcodes transliterated to numbers)
+  const cleanSearch = normalizeBarcode(searchQuery);
   const filteredProducts = products.filter((p) => {
+    const qLower = searchQuery.toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(searchQuery));
+      p.name.toLowerCase().includes(qLower) ||
+      (p.barcode && (
+        p.barcode.includes(searchQuery) ||
+        (cleanSearch && p.barcode.includes(cleanSearch))
+      ));
     const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });

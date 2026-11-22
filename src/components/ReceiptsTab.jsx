@@ -15,7 +15,8 @@ import {
 export default function ReceiptsTab({
   orderHistory = [],
   onPrintThermal,
-  storeSettings = null
+  storeSettings = null,
+  showAlert
 }) {
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', '7days'
@@ -60,7 +61,8 @@ export default function ReceiptsTab({
   // Export CSV
   const handleExportCsv = () => {
     if (filteredOrders.length === 0) {
-      alert('ไม่มีข้อมูลใบเสร็จเพื่อส่งออก');
+      if (showAlert) showAlert('ไม่มีข้อมูลใบเสร็จเพื่อส่งออก', 'info');
+      else alert('ไม่มีข้อมูลใบเสร็จเพื่อส่งออก');
       return;
     }
     const headers = ['เลขที่บิล', 'วันที่-เวลา', 'จำนวนรายการ', 'ยอดรวมสุทธิ (บาท)', 'ภาษีมูลค่าเพิ่ม 7% (บาท)', 'วิธีการชำระเงิน', 'เงินสดรับ', 'เงินทอน'];
@@ -114,6 +116,7 @@ export default function ReceiptsTab({
           <button
             onClick={() => {
               if (activeOrder) onPrintThermal(activeOrder);
+              else if (showAlert) showAlert('กรุณาเลือกบิลเพื่อพิมพ์', 'warning');
               else alert('กรุณาเลือกบิลเพื่อพิมพ์');
             }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#181A18] hover:bg-[#2C302D] text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer"
