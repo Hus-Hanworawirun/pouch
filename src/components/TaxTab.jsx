@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toLocalDateKey } from '../utils/date';
 import {
   Printer,
   FileDown,
@@ -24,7 +25,7 @@ export default function TaxTab({
   showAlert
 }) {
   const [localExpense, setLocalExpense] = useState({
-    expense_date: new Date().toISOString().slice(0, 10),
+    expense_date: toLocalDateKey(new Date()),
     category: 'ค่าเช่าสถานที่',
     title: '',
     amount: '',
@@ -34,25 +35,33 @@ export default function TaxTab({
 
   const handleInlineExpenseSubmit = async (e) => {
     e.preventDefault();
-    if (!localExpense.title || !localExpense.amount) {
-      if (showAlert) showAlert('กรุณากรอกชื่อรายการและจำนวนเงิน', 'warning');
-      else alert('กรุณากรอกชื่อรายการและจำนวนเงิน');
+    const trimmedTitle = localExpense.title.trim();
+    const parsedAmt = parseFloat(localExpense.amount);
+    if (!trimmedTitle || isNaN(parsedAmt) || parsedAmt <= 0) {
+      if (showAlert) showAlert('กรุณากรอกคำอธิบายและจำนวนเงินที่มากกว่า 0', 'warning', 'ข้อมูลไม่ครบถ้วน');
+      else alert('กรุณากรอกคำอธิบายและจำนวนเงินที่มากกว่า 0');
       return;
     }
-    await onSaveExpense(localExpense);
-    setLocalExpense({
-      expense_date: new Date().toISOString().slice(0, 10),
-      category: 'ค่าเช่าสถานที่',
-      title: '',
-      amount: '',
-      receipt_no: '',
-      note: ''
+    const saved = await onSaveExpense({
+      ...localExpense,
+      title: trimmedTitle,
+      amount: parsedAmt
     });
+    if (saved !== false) {
+      setLocalExpense({
+        expense_date: toLocalDateKey(new Date()),
+        category: 'ค่าเช่าสถานที่',
+        title: '',
+        amount: '',
+        receipt_no: '',
+        note: ''
+      });
+    }
   };
 
   const revenue = taxSummary?.total_revenue || 0;
-  const cogs = taxSummary?.total_cogs || 0;
-  const opex = taxSummary?.total_expenses || 0;
+  const cogs = taxSummary?.cogs_sold ?? taxSummary?.total_cogs ?? 0;
+  const opex = taxSummary?.operational_expenses ?? taxSummary?.total_expenses ?? 0;
   const totalDeductionsActual = cogs + opex;
   const personalAllowance = 60000;
 
@@ -320,7 +329,7 @@ export default function TaxTab({
               <span>บันทึกค่าใช้จ่ายร้าน (OPEX)</span>
             </div>
 
-            <form onSubmit={handleInlineExpenseSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleInlineExpenseSubmit} noValidate className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] text-slate-500 block mb-1">วันที่</label>

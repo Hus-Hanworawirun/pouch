@@ -56,7 +56,7 @@ export default function RestockModal({
             </div>
           </div>
 
-          <form onSubmit={onSubmitRestock} className="space-y-3.5">
+          <form onSubmit={onSubmitRestock} noValidate className="space-y-3.5">
             <div>
               <label className="font-semibold text-[#181A18] block mb-1">
                 จำนวนที่รับเข้าเพิ่ม (ชิ้น) <span className="text-rose-500">*</span>
@@ -86,8 +86,21 @@ export default function RestockModal({
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#F7F6F2] border border-[#EAE7E1] font-mono text-[#181A18] focus:outline-none focus:ring-2 focus:ring-[#181A18]/20 focus:border-[#181A18]"
               />
               <span className="text-[10px] text-[#717672] mt-1 block">
-                หากเว้นว่าง ระบบจะใช้ราคาต้นทุนเดิม (฿{(product.cost_price || 0).toFixed(2)})
+                หากเว้นว่าง ระบบจะใช้ราคาต้นทุนเดิม (฿{(product.cost_price || 0).toFixed(2)}/ชิ้น)
               </span>
+              {parseInt(restockForm.add_qty, 10) > 0 && (
+                <div className="mt-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-[11px] text-[#181A18] flex items-center justify-between">
+                  <span>รวมต้นทุนซื้อล็อตนี้ ({parseInt(restockForm.add_qty, 10)} ชิ้น):</span>
+                  <span className="font-bold font-mono text-emerald-800">
+                    ฿{(
+                      parseInt(restockForm.add_qty, 10) *
+                      (restockForm.batch_cost !== '' && !isNaN(parseFloat(restockForm.batch_cost))
+                        ? parseFloat(restockForm.batch_cost)
+                        : (product.cost_price || 0))
+                    ).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

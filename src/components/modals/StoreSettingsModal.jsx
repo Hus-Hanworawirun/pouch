@@ -111,7 +111,7 @@ export default function StoreSettingsModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="p-6 space-y-5">
           {/* 1. Logo Upload & Live Preview */}
           <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-[#F7F6F2] rounded-2xl border border-[#EAE7E1]">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>

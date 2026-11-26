@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   AlertTriangle,
   XCircle,
@@ -16,10 +16,27 @@ export default function AlertModal({
   detail = '',
   storeSettings = null
 }) {
+  const openedAtRef = useRef(0);
+  const dialogRef = useRef(null);
+
   useEffect(() => {
     if (!isOpen) return;
+    openedAtRef.current = Date.now();
+    // Move focus off buttons/inputs onto the modal container so trailing scanner Enter does not trigger click
+    dialogRef.current?.focus();
+
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+        // Ignore trailing scanner Enter/Space within 350ms of opening
+        if (Date.now() - openedAtRef.current < 350) {
+          e.preventDefault();
+          return;
+        }
         e.preventDefault();
         onClose();
       }
@@ -71,7 +88,11 @@ export default function AlertModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 select-none font-['Prompt',sans-serif] animate-fadeIn">
-      <div className="bg-white border border-[#EAE7E1] rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-scaleUp">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="bg-white border border-[#EAE7E1] rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-scaleUp outline-none"
+      >
         {/* Brand Header */}
         <div className="px-5 py-3.5 border-b border-[#EAE7E1] flex items-center justify-between bg-white">
           <div className="flex items-center gap-2.5">
@@ -119,7 +140,6 @@ export default function AlertModal({
             <button
               type="button"
               onClick={onClose}
-              autoFocus
               className="w-full py-2.5 bg-[#181A18] hover:bg-[#2C302D] text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
             >
               ตกลง

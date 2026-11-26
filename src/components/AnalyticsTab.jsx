@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { parseUtcDate, toLocalDateKey } from '../utils/date';
 import {
   TrendingUp,
   TrendingDown,
@@ -35,11 +36,11 @@ export default function AnalyticsTab({
   const filteredOrders = useMemo(() => {
     return orderHistory.filter((ord) => {
       if (!ord.created_at) return true;
-      const orderDate = new Date(ord.created_at);
+      const orderDate = parseUtcDate(ord.created_at);
       const now = new Date();
 
       if (reportTimeframe === 'today') {
-        return orderDate.toDateString() === now.toDateString();
+        return toLocalDateKey(orderDate) === toLocalDateKey(now);
       }
       if (reportTimeframe === 'week') {
         const sevenDaysAgo = new Date();
@@ -59,11 +60,11 @@ export default function AnalyticsTab({
   // Filter Expenses by Timeframe
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
-      const expDate = exp.expense_date ? new Date(exp.expense_date) : new Date(exp.created_at || Date.now());
+      const expDate = exp.expense_date ? parseUtcDate(exp.expense_date) : parseUtcDate(exp.created_at || Date.now());
       const now = new Date();
 
       if (reportTimeframe === 'today') {
-        return expDate.toDateString() === now.toDateString();
+        return toLocalDateKey(expDate) === toLocalDateKey(now);
       }
       if (reportTimeframe === 'week') {
         const sevenDaysAgo = new Date();
@@ -113,7 +114,7 @@ export default function AnalyticsTab({
       ];
 
       filteredOrders.forEach((ord) => {
-        const d = new Date(ord.created_at);
+        const d = parseUtcDate(ord.created_at);
         const h = d.getHours();
         const slot = slots.find((s) => h >= s.startHour && h < s.endHour) || slots[slots.length - 1];
         if (slot) {
@@ -133,7 +134,7 @@ export default function AnalyticsTab({
       for (let i = 6; i >= 0; i--) {
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() - i);
-        const dateStr = targetDate.toISOString().slice(0, 10);
+        const dateStr = toLocalDateKey(targetDate);
         const displayLabel = `${dayNames[targetDate.getDay()]} ${targetDate.getDate()}/${targetDate.getMonth() + 1}`;
         slots.push({
           dateStr,
@@ -147,7 +148,7 @@ export default function AnalyticsTab({
       }
 
       filteredOrders.forEach((ord) => {
-        const orderDateStr = new Date(ord.created_at).toISOString().slice(0, 10);
+        const orderDateStr = toLocalDateKey(ord.created_at);
         const slot = slots.find((s) => s.dateStr === orderDateStr);
         if (slot) {
           const cogs = ord.items?.reduce((s, it) => s + ((it.unit_cost || 0) * (it.quantity || 1)), 0) || ord.total_cost || 0;
@@ -169,7 +170,7 @@ export default function AnalyticsTab({
       ];
 
       filteredOrders.forEach((ord) => {
-        const d = new Date(ord.created_at);
+        const d = parseUtcDate(ord.created_at);
         const day = d.getDate();
         const slot = slots.find((s) => day >= s.startDay && day <= s.endDay) || slots[3];
         if (slot) {
@@ -204,7 +205,7 @@ export default function AnalyticsTab({
     }
 
     filteredOrders.forEach((ord) => {
-      const d = new Date(ord.created_at);
+      const d = parseUtcDate(ord.created_at);
       const slot = slots.find((s) => s.year === d.getFullYear() && s.month === d.getMonth());
       if (slot) {
         const cogs = ord.items?.reduce((s, it) => s + ((it.unit_cost || 0) * (it.quantity || 1)), 0) || ord.total_cost || 0;
@@ -311,7 +312,7 @@ export default function AnalyticsTab({
       const gp = ord.total_amount > 0 ? ((profit / ord.total_amount) * 100).toFixed(1) : 0;
       return [
         ord.order_no,
-        `"${new Date(ord.created_at).toLocaleString('th-TH')}"`,
+        `"${parseUtcDate(ord.created_at).toLocaleString('th-TH')}"`,
         ord.items?.length || ord.items_count || 1,
         (ord.total_amount || 0).toFixed(2),
         cogs.toFixed(2),
@@ -326,7 +327,7 @@ export default function AnalyticsTab({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `รายงานกำไรขาดทุน_FIFO_${reportTimeframe}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `รายงานกำไรขาดทุน_FIFO_${reportTimeframe}_${toLocalDateKey(new Date())}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -754,7 +755,7 @@ export default function AnalyticsTab({
                           {ord.order_no}
                         </td>
                         <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
-                          {new Date(ord.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                          {parseUtcDate(ord.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
                         </td>
                         <td className="py-2.5 px-3">
                           <span className="text-slate-800 truncate block max-w-[220px]" title={ord.items?.map((it) => `${it.product_name} (${it.quantity})`).join(', ')}>
@@ -771,14 +772,14 @@ export default function AnalyticsTab({
                           +฿{profit.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">({gp}%)</span>
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             ลงบัญชีแล้ว
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <button
                             onClick={() => onViewReceipt(ord)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors flex items-center gap-1 ml-auto"
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium transition-colors inline-flex items-center gap-1 ml-auto whitespace-nowrap cursor-pointer"
                             type="button"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -823,7 +824,7 @@ export default function AnalyticsTab({
                     return (
                       <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-3 font-mono text-slate-500 whitespace-nowrap">
-                          {new Date(log.created_at || Date.now()).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                          {parseUtcDate(log.created_at || Date.now()).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
                         </td>
                         <td className="py-2.5 px-3 font-medium text-slate-900">
                           <div className="truncate max-w-[200px]">{log.product_name || 'สินค้า'}</div>
@@ -831,7 +832,7 @@ export default function AnalyticsTab({
                         </td>
                         <td className="py-2.5 px-3">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                               isPurchase
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 border-rose-200'

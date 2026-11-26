@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { parseUtcDate, toLocalDateKey } from '../utils/date';
 import {
   Receipt,
   FileDown,
@@ -33,13 +34,13 @@ export default function ReceiptsTab({
     if (!matchesSearch) return false;
 
     if (dateFilter === 'today') {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const ordDateStr = new Date(ord.created_at).toISOString().slice(0, 10);
+      const todayStr = toLocalDateKey(new Date());
+      const ordDateStr = toLocalDateKey(ord.created_at);
       return todayStr === ordDateStr;
     }
 
     if (dateFilter === '7days') {
-      const orderDate = new Date(ord.created_at);
+      const orderDate = parseUtcDate(ord.created_at);
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       return orderDate >= sevenDaysAgo;
@@ -70,7 +71,7 @@ export default function ReceiptsTab({
       const vat = Number(((ord.total_amount || 0) * 7 / 107).toFixed(2));
       return [
         ord.order_no,
-        `"${new Date(ord.created_at).toLocaleString('th-TH')}"`,
+        `"${parseUtcDate(ord.created_at).toLocaleString('th-TH')}"`,
         ord.items?.length || 0,
         (ord.total_amount || 0).toFixed(2),
         vat.toFixed(2),
@@ -85,7 +86,7 @@ export default function ReceiptsTab({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `รายงานใบเสร็จรับเงิน_${dateFilter}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `รายงานใบเสร็จรับเงิน_${dateFilter}_${toLocalDateKey(new Date())}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -266,7 +267,7 @@ export default function ReceiptsTab({
                             isSelected ? 'text-slate-300' : 'text-slate-500'
                           }`}
                         >
-                          {new Date(ord.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. • {itemCount} ชิ้น
+                          {parseUtcDate(ord.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. • {itemCount} ชิ้น
                         </div>
                       </div>
                     </div>
@@ -342,8 +343,8 @@ export default function ReceiptsTab({
                     <span>แคชเชียร์ 01</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>วันที่: {new Date(activeOrder.created_at).toLocaleDateString('th-TH')}</span>
-                    <span>เวลา: {new Date(activeOrder.created_at).toLocaleTimeString('th-TH')} น.</span>
+                    <span>วันที่: {parseUtcDate(activeOrder.created_at).toLocaleDateString('th-TH')}</span>
+                    <span>เวลา: {parseUtcDate(activeOrder.created_at).toLocaleTimeString('th-TH')} น.</span>
                   </div>
                 </div>
 
@@ -380,6 +381,18 @@ export default function ReceiptsTab({
                       ฿{(activeOrder.total_amount || 0).toFixed(2)}
                     </span>
                   </div>
+                  {(activeOrder.cash_received > 0 || activeOrder.change_amount > 0) && (
+                    <>
+                      <div className="flex justify-between text-slate-500 pt-1">
+                        <span>รับเงินมา</span>
+                        <span className="font-mono text-slate-800">฿{(activeOrder.cash_received || activeOrder.total_amount || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 font-semibold">
+                        <span>เงินทอน</span>
+                        <span className="font-mono">฿{(activeOrder.change_amount || 0).toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Actions */}

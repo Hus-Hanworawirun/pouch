@@ -32,6 +32,7 @@ export default function CashierTab({
   setCashReceived,
   onCheckout,
   onOpenAddProduct,
+  onScanBarcode,
   storeSettings = null
 }) {
   const searchInputRef = useRef(null);
@@ -122,10 +123,10 @@ export default function CashierTab({
               <button
                 type="button"
                 onClick={onOpenAddProduct}
-                className="bg-white hover:bg-slate-50 border border-[#EAE7E1] text-[#181A18] rounded-2xl px-3.5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                className="bg-white hover:bg-slate-50 border border-[#EAE7E1] text-[#181A18] rounded-2xl px-3.5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shrink-0"
                 title="เพิ่มสินค้าใหม่"
               >
-                <Plus className="w-4 h-4 text-[#717672]" />
+                <Plus className="w-4 h-4 text-[#717672] shrink-0" />
                 <span>เพิ่มสินค้าใหม่</span>
               </button>
             )}
@@ -139,10 +140,34 @@ export default function CashierTab({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  const trimmed = searchQuery.trim();
+                  const normalized = normalizeBarcode(trimmed);
+                  const matchesBarcode = products.some(
+                    (p) => p.barcode && (p.barcode === normalized || p.barcode === trimmed)
+                  );
+                  if (matchesBarcode || /^\d{3,}$/.test(normalized)) {
+                    e.preventDefault();
+                    onScanBarcode?.(trimmed);
+                    setSearchQuery('');
+                  }
+                }
+              }}
               placeholder="ค้นหาสินค้า หรือ ยิงบาร์โค้ด..."
-              className="w-full bg-white border border-[#EAE7E1] rounded-2xl pl-11 pr-24 py-3 text-xs text-[#181A18] placeholder:text-[#8C948E] focus:outline-none focus:ring-2 focus:ring-[#181A18]/20 focus:border-[#181A18] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+              className="w-full bg-white border border-[#EAE7E1] rounded-2xl pl-11 pr-28 py-3 text-xs text-[#181A18] placeholder:text-[#8C948E] focus:outline-none focus:ring-2 focus:ring-[#181A18]/20 focus:border-[#181A18] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
             />
             <div className="absolute right-3.5 flex items-center gap-2">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  title="ล้างคำค้นหา"
+                  className="text-[#8C948E] hover:text-[#181A18] p-1 rounded-lg hover:bg-[#F7F6F2] transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
               <span className="px-2 py-0.5 rounded-md bg-[#F7F6F2] border border-[#EAE7E1] text-[10px] font-mono text-[#717672] font-semibold">
                 F2
               </span>
@@ -151,7 +176,7 @@ export default function CashierTab({
           </div>
 
           {/* Category Filter Pills matching the mock-up */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center flex-wrap gap-1.5 pb-1">
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
@@ -201,7 +226,7 @@ export default function CashierTab({
               <p className="text-[11px] text-[#8C948E] mt-0.5">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {filteredProducts.map((p) => {
                 const isOutOfStock = p.stock_qty <= 0;
                 return (
@@ -264,7 +289,7 @@ export default function CashierTab({
       </div>
 
       {/* 2. RIGHT CART PANEL: CURRENT ORDER */}
-      <div className="w-96 lg:w-[410px] bg-white border-l border-[#EAE7E1] flex flex-col shrink-0 select-none shadow-[-4px_0_16px_rgba(0,0,0,0.02)]">
+      <div className="w-80 lg:w-96 xl:w-[410px] bg-white border-l border-[#EAE7E1] flex flex-col shrink-0 select-none shadow-[-4px_0_16px_rgba(0,0,0,0.02)]">
         {/* Cart Header */}
         <div className="px-5 py-4 border-b border-[#EAE7E1] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -426,8 +451,9 @@ export default function CashierTab({
             <button
               type="button"
               onClick={onCheckout}
-              disabled={cart.length === 0}
-              className="w-full bg-[#181A18] hover:bg-[#2C302D] text-white rounded-2xl py-3.5 px-5 font-bold text-sm flex items-center justify-between shadow-md transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group"
+              className={`w-full bg-[#181A18] text-white rounded-2xl py-3.5 px-5 font-bold text-sm flex items-center justify-between shadow-md transition-all cursor-pointer group ${
+                cart.length === 0 ? 'opacity-50 hover:opacity-70' : 'hover:bg-[#2C302D]'
+              }`}
             >
               <span className="tracking-wide">คิดเงิน (ชำระเงิน)</span>
               <div className="flex items-center gap-1.5 font-mono">

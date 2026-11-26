@@ -29,7 +29,7 @@ export default function Sidebar({
   onOpenStoreSettings = () => {}
 }) {
   return (
-    <aside className="w-64 bg-[#141715] text-[#A6ADA8] flex flex-col shrink-0 border-r border-[#232824] select-none font-['Prompt',sans-serif]">
+    <aside className="w-56 xl:w-64 bg-[#141715] text-[#A6ADA8] flex flex-col shrink-0 border-r border-[#232824] select-none font-['Prompt',sans-serif]">
       {/* Brand Header */}
       <div
         onClick={onOpenStoreSettings}

@@ -60,7 +60,7 @@ export default function ProductModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={onSaveProduct} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+        <form onSubmit={onSaveProduct} noValidate className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {/* Product Name */}
             <div className="md:col-span-2 space-y-1">

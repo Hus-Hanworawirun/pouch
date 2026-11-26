@@ -200,7 +200,7 @@ export default function InventoryTab({
         </section>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center flex-wrap gap-2 pb-1">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -219,18 +219,19 @@ export default function InventoryTab({
 
         {/* Product Inventory Table (Clean White Minimal Card) */}
         <div className="bg-white rounded-2xl border border-[#EAE7E1] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="w-full overflow-x-auto">
           <table className="w-full text-left text-xs text-[#717672]">
-            <thead className="bg-[#F7F6F2] border-b border-[#EAE7E1] text-[#181A18] font-semibold uppercase tracking-wider text-[11px]">
+            <thead className="bg-[#F7F6F2] border-b border-[#EAE7E1] text-[#181A18] font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">
               <tr>
-                <th className="py-3 px-4">รูปภาพ</th>
-                <th className="py-3 px-4">บาร์โค้ด</th>
-                <th className="py-3 px-4">ชื่อสินค้า / หมวดหมู่</th>
-                <th className="py-3 px-4 text-right">ต้นทุน/หน่วย</th>
-                <th className="py-3 px-4 text-right">กำไร/หน่วย</th>
-                <th className="py-3 px-4 text-right">ราคาขายปลีก</th>
-                <th className="py-3 px-4 text-center">สต็อกคงเหลือ</th>
-                <th className="py-3 px-4 text-right">มูลค่าสต็อก (ทุน)</th>
-                <th className="py-3 px-4 text-center">บาร์โค้ด &amp; จัดการ</th>
+                <th className="py-3 px-3 xl:px-4">รูปภาพ</th>
+                <th className="py-3 px-3 xl:px-4">บาร์โค้ด</th>
+                <th className="py-3 px-3 xl:px-4">ชื่อสินค้า / หมวดหมู่</th>
+                <th className="py-3 px-3 xl:px-4 text-right">ต้นทุน/หน่วย</th>
+                <th className="py-3 px-3 xl:px-4 text-right">กำไร/หน่วย</th>
+                <th className="py-3 px-3 xl:px-4 text-right">ราคาขายปลีก</th>
+                <th className="py-3 px-3 xl:px-4 text-center">สต็อกคงเหลือ</th>
+                <th className="py-3 px-3 xl:px-4 text-right">มูลค่าสต็อก (ทุน)</th>
+                <th className="py-3 px-3 xl:px-4 text-center">บาร์โค้ด &amp; จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EAE7E1]">
@@ -248,8 +249,8 @@ export default function InventoryTab({
 
                   return (
                     <tr key={p.id} className="hover:bg-[#FBFBFA] transition-colors">
-                      <td className="py-2.5 px-4">
-                        <div className="w-12 h-12 rounded-xl bg-[#F7F6F2] border border-[#EAE7E1] overflow-hidden flex items-center justify-center shrink-0">
+                      <td className="py-2.5 px-3 xl:px-4">
+                        <div className="w-11 h-11 rounded-xl bg-[#F7F6F2] border border-[#EAE7E1] overflow-hidden flex items-center justify-center shrink-0">
                           {p.image_url ? (
                             <img src={p.image_url} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -257,16 +258,16 @@ export default function InventoryTab({
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 px-4 font-mono font-medium text-[#181A18]">
+                      <td className="py-2.5 px-3 xl:px-4 font-mono font-medium text-[#181A18] whitespace-nowrap">
                         {p.barcode || '-'}
                       </td>
-                      <td className="py-2.5 px-4">
+                      <td className="py-2.5 px-3 xl:px-4 min-w-[140px]">
                         <div className="font-semibold text-[#181A18]">{p.name}</div>
                         <span className="inline-block mt-0.5 px-2 py-0.5 bg-[#F7F6F2] rounded text-[10px] text-[#717672] font-medium border border-[#EAE7E1]">
                           {p.category || 'ทั่วไป'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-4 text-right font-medium text-[#181A18] font-mono">
+                      <td className="py-2.5 px-3 xl:px-4 text-right font-medium text-[#181A18] font-mono whitespace-nowrap">
                         ฿{(p.cost_price || 0).toFixed(2)}
                         {p.pack_cost > 0 && (
                           <div className="text-[10px] text-[#717672] font-sans">
@@ -274,13 +275,13 @@ export default function InventoryTab({
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-medium text-emerald-700 font-mono">
+                      <td className="py-2.5 px-3 xl:px-4 text-right font-medium text-emerald-700 font-mono whitespace-nowrap">
                         +฿{((p.sell_price || 0) - (p.cost_price || 0)).toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-bold text-[#181A18] text-sm font-mono">
+                      <td className="py-2.5 px-3 xl:px-4 text-right font-bold text-[#181A18] text-sm font-mono whitespace-nowrap">
                         ฿{(p.sell_price || 0).toFixed(2)}
                       </td>
-                      <td className="py-2.5 px-4 text-center">
+                      <td className="py-2.5 px-3 xl:px-4 text-center whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                             isOutOfStock
@@ -293,16 +294,16 @@ export default function InventoryTab({
                           {p.stock_qty} ชิ้น
                         </span>
                       </td>
-                      <td className="py-2.5 px-4 text-right font-medium text-[#181A18] font-mono">
+                      <td className="py-2.5 px-3 xl:px-4 text-right font-medium text-[#181A18] font-mono whitespace-nowrap">
                         ฿{itemTotalCostValue.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2.5 px-4 text-center">
+                      <td className="py-2.5 px-3 xl:px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => onOpenBarcode(p)}
                             type="button"
                             title="ดาวน์โหลด / พิมพ์บาร์โค้ดติดสินค้า"
-                            className="px-2 py-1 bg-[#F7F6F2] text-[#181A18] hover:bg-[#EAE7E1] rounded-lg text-xs font-medium flex items-center gap-1 transition-colors border border-[#EAE7E1] cursor-pointer"
+                            className="px-2 py-1 bg-[#F7F6F2] text-[#181A18] hover:bg-[#EAE7E1] rounded-lg text-xs font-medium flex items-center gap-1 transition-colors border border-[#EAE7E1] cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <BarcodeIcon className="w-3.5 h-3.5 text-[#717672]" />
                             <span>บาร์โค้ด</span>
@@ -312,7 +313,7 @@ export default function InventoryTab({
                             onClick={() => onOpenRestock(p)}
                             type="button"
                             title="เติมสต็อกสินค้า"
-                            className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors border border-emerald-200/60 cursor-pointer"
+                            className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors border border-emerald-200/60 cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <PlusCircle className="w-3.5 h-3.5" />
                             <span>เติมของ</span>
@@ -322,7 +323,7 @@ export default function InventoryTab({
                             onClick={() => onOpenEditProduct(p)}
                             type="button"
                             title="แก้ไขข้อมูลสินค้า"
-                            className="p-1.5 text-[#717672] hover:text-[#181A18] hover:bg-[#F7F6F2] rounded-lg transition-colors border border-[#EAE7E1] cursor-pointer"
+                            className="p-1.5 text-[#717672] hover:text-[#181A18] hover:bg-[#F7F6F2] rounded-lg transition-colors border border-[#EAE7E1] cursor-pointer shrink-0"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
@@ -331,7 +332,7 @@ export default function InventoryTab({
                             onClick={() => onDeleteProduct(p.id, p.name)}
                             type="button"
                             title="ลบสินค้านี้"
-                            className="p-1.5 text-[#717672] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-[#EAE7E1] cursor-pointer"
+                            className="p-1.5 text-[#717672] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-[#EAE7E1] cursor-pointer shrink-0"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -343,6 +344,7 @@ export default function InventoryTab({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ import ReceiptModal from './components/modals/ReceiptModal';
 import UpdateModal from './components/modals/UpdateModal';
 import StoreSettingsModal from './components/modals/StoreSettingsModal';
 import AlertModal from './components/modals/AlertModal';
+import ConfirmModal from './components/modals/ConfirmModal';
 import { normalizeBarcode, getCharFromKeyEvent } from './utils/barcode';
 
 export default function App() {
@@ -42,6 +43,31 @@ export default function App() {
 
   const closeAlert = () => {
     setAlertModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // Custom Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'ยืนยัน',
+    variant: 'danger',
+    onConfirm: null
+  });
+
+  const showConfirm = ({ title, message, confirmText = 'ยืนยัน', variant = 'danger', onConfirm }) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      variant,
+      onConfirm
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false, onConfirm: null }));
   };
 
   // App Version & Auto-Updater State
@@ -317,20 +343,30 @@ export default function App() {
   };
 
   // Clear all data
-  const handleClearAllData = async () => {
-    if (!window.confirm('คำเตือน: คุณต้องการล้างข้อมูลสินค้า ประวัติการขาย และบัญชีทั้งหมดในระบบหรือไม่?')) return;
-    try {
-      const res = await fetch('/api/system/clear', { method: 'POST' });
-      if (res.ok) {
-        showAlert('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success', 'ล้างข้อมูลระบบ');
-        setCart([]);
-        fetchProducts();
-        fetchAccountingData();
-        fetchTaxData();
+  const handleClearAllData = () => {
+    showConfirm({
+      title: 'ล้างข้อมูลระบบทั้งหมด',
+      message: 'คำเตือน: คุณต้องการล้างข้อมูลสินค้า ประวัติการขาย และบัญชีทั้งหมดในระบบหรือไม่?',
+      confirmText: 'ล้างข้อมูลทั้งหมด',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const res = await fetch('/api/system/clear', { method: 'POST' });
+          if (res.ok) {
+            showAlert('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success', 'ล้างข้อมูลระบบ');
+            setCart([]);
+            fetchProducts();
+            fetchAccountingData();
+            fetchTaxData();
+          } else {
+            showAlert('ไม่สามารถล้างข้อมูลได้', 'error');
+          }
+        } catch (err) {
+          showAlert('ไม่สามารถล้างข้อมูลได้', 'error');
+        }
       }
-    } catch (err) {
-      showAlert('ไม่สามารถล้างข้อมูลได้', 'error');
-    }
+    });
   };
 
   // Global Barcode Scanner Listener
@@ -339,21 +375,34 @@ export default function App() {
     let lastKeyTime = Date.now();
 
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+      // Do not intercept keys while modals are open or inputs are active
+      if (
+        alertModal.isOpen ||
+        confirmModal.isOpen ||
+        isProductModalOpen ||
+        isRestockModalOpen ||
+        isStoreSettingsOpen ||
+        isUpdateModalOpen ||
+        completedOrder ||
+        selectedReceiptOrder ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+      ) {
         return;
       }
 
       const currentTime = Date.now();
-      if (currentTime - lastKeyTime > 150) {
+      if (currentTime - lastKeyTime > 250) {
         buffer = '';
       }
       lastKeyTime = currentTime;
 
       if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
         if (buffer.length >= 3) {
+          e.preventDefault();
+          e.stopPropagation();
           const scannedCode = buffer.trim();
-          handleScannedBarcode(scannedCode);
           buffer = '';
+          handleScannedBarcode(scannedCode);
         }
       } else {
         const char = getCharFromKeyEvent(e);
@@ -365,7 +414,18 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [products, cart]);
+  }, [
+    products,
+    cart,
+    alertModal.isOpen,
+    confirmModal.isOpen,
+    isProductModalOpen,
+    isRestockModalOpen,
+    isStoreSettingsOpen,
+    isUpdateModalOpen,
+    completedOrder,
+    selectedReceiptOrder
+  ]);
 
   const handleScannedBarcode = (barcode) => {
     const rawBarcode = (barcode || '').trim();
@@ -603,13 +663,35 @@ export default function App() {
   // Save Product (Create or Update)
   const handleSaveProduct = async (e) => {
     e.preventDefault();
+    if (!productForm.name?.trim()) {
+      showAlert('กรุณากรอกชื่อสินค้า', 'warning', 'ข้อมูลไม่ครบถ้วน');
+      return;
+    }
+    if (productForm.cost_price === '' || isNaN(parseFloat(productForm.cost_price))) {
+      showAlert('กรุณาระบุต้นทุนต่อหน่วยให้ถูกต้อง', 'warning', 'ข้อมูลไม่ครบถ้วน');
+      return;
+    }
+    if (productForm.sell_price === '' || isNaN(parseFloat(productForm.sell_price))) {
+      showAlert('กรุณาระบุราคาขายหน้าร้านให้ถูกต้อง', 'warning', 'ข้อมูลไม่ครบถ้วน');
+      return;
+    }
     try {
       const formData = new FormData();
-      formData.append('name', productForm.name);
-      formData.append('barcode', productForm.barcode || '');
-      formData.append('category', productForm.category || 'ทั่วไป');
-      formData.append('cost_price', productForm.cost_price || 0);
-      formData.append('sell_price', productForm.sell_price || 0);
+      const costNum = parseFloat(productForm.cost_price) || 0;
+      const sellNum = parseFloat(productForm.sell_price) || 0;
+      const computedMargin =
+        productForm.profit_margin !== '' && !isNaN(parseFloat(productForm.profit_margin))
+          ? parseFloat(productForm.profit_margin)
+          : Number((sellNum - costNum).toFixed(2));
+
+      formData.append('name', productForm.name.trim());
+      formData.append('barcode', (productForm.barcode || '').trim());
+      formData.append('category', (productForm.category || 'ทั่วไป').trim());
+      formData.append('pack_cost', productForm.pack_cost || 0);
+      formData.append('pack_qty', productForm.pack_qty || 1);
+      formData.append('cost_price', costNum);
+      formData.append('profit_margin', computedMargin);
+      formData.append('sell_price', sellNum);
       formData.append('stock_qty', productForm.stock_qty || 0);
       formData.append('min_stock', productForm.min_stock || 0);
 
@@ -644,19 +726,29 @@ export default function App() {
   };
 
   // Delete Product
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm('คุณแน่ใจว่าต้องการลบสินค้านี้ออกจากระบบหรือไม่?')) return;
-    try {
-      const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchProducts();
-        fetchAccountingData();
-      } else {
-        showAlert('ไม่สามารถลบสินค้าได้', 'error');
+  const handleDeleteProduct = (productId, productName) => {
+    showConfirm({
+      title: 'ลบรายการสินค้า',
+      message: productName
+        ? `คุณแน่ใจว่าต้องการลบสินค้า "${productName}" ออกจากระบบหรือไม่?`
+        : 'คุณแน่ใจว่าต้องการลบสินค้านี้ออกจากระบบหรือไม่?',
+      confirmText: 'ลบสินค้า',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+          if (res.ok) {
+            fetchProducts();
+            fetchAccountingData();
+          } else {
+            showAlert('ไม่สามารถลบสินค้าได้', 'error');
+          }
+        } catch (err) {
+          showAlert('เกิดข้อผิดพลาดในการลบสินค้า', 'error');
+        }
       }
-    } catch (err) {
-      showAlert('เกิดข้อผิดพลาดในการลบสินค้า', 'error');
-    }
+    });
   };
 
   // Restock Modal
@@ -675,13 +767,24 @@ export default function App() {
     e.preventDefault();
     if (!restockProduct) return;
 
+    const qtyNum = parseInt(restockForm.add_qty, 10);
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      showAlert('กรุณากรอกจำนวนสินค้าที่รับเข้าเพิ่ม (อย่างน้อย 1 ชิ้น)', 'warning', 'ข้อมูลไม่ถูกต้อง');
+      return;
+    }
+
+    const parsedUnitCost =
+      restockForm.batch_cost !== '' && !isNaN(parseFloat(restockForm.batch_cost))
+        ? Math.max(0, parseFloat(restockForm.batch_cost))
+        : (restockProduct.cost_price || 0);
+
     try {
       const res = await fetch(`/api/products/${restockProduct.id}/restock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          add_qty: parseInt(restockForm.add_qty, 10),
-          batch_cost: restockForm.batch_cost ? parseFloat(restockForm.batch_cost) : undefined,
+          add_qty: qtyNum,
+          unit_cost: parsedUnitCost,
           update_cost_price: restockForm.update_cost_price,
           note: restockForm.note
         })
@@ -712,26 +815,40 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(expenseData)
       });
-      if (res.ok) {
-        fetchTaxData();
-        fetchAccountingData();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'ไม่สามารถบันทึกค่าใช้จ่ายได้');
       }
+      fetchTaxData();
+      fetchAccountingData();
+      return true;
     } catch (err) {
-      showAlert('ไม่สามารถบันทึกค่าใช้จ่ายได้', 'error');
+      showAlert(err.message || 'ไม่สามารถบันทึกค่าใช้จ่ายได้', 'error');
+      return false;
     }
   };
 
-  const handleDeleteExpense = async (id) => {
-    if (!window.confirm('คุณต้องการลบรายการค่าใช้จ่ายนี้หรือไม่?')) return;
-    try {
-      const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchTaxData();
-        fetchAccountingData();
+  const handleDeleteExpense = (id) => {
+    showConfirm({
+      title: 'ลบรายการค่าใช้จ่าย',
+      message: 'คุณต้องการลบรายการค่าใช้จ่าย (OPEX) นี้ออกจากระบบใช่หรือไม่?',
+      confirmText: 'ลบรายการ',
+      variant: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            fetchTaxData();
+            fetchAccountingData();
+          } else {
+            showAlert('ไม่สามารถลบค่าใช้จ่ายได้', 'error');
+          }
+        } catch (err) {
+          showAlert('ไม่สามารถลบค่าใช้จ่ายได้', 'error');
+        }
       }
-    } catch (err) {
-      showAlert('ไม่สามารถลบค่าใช้จ่ายได้', 'error');
-    }
+    });
   };
 
   // Export Tax Por Sor 10 CSV
@@ -805,6 +922,7 @@ export default function App() {
               setCashReceived={setCashReceived}
               onCheckout={handleCheckoutSubmit}
               onOpenAddProduct={() => openAddProductModal()}
+              onScanBarcode={handleScannedBarcode}
               storeSettings={storeSettings}
             />
           )}
@@ -926,6 +1044,17 @@ export default function App() {
         title={alertModal.title}
         message={alertModal.message}
         detail={alertModal.detail}
+        storeSettings={storeSettings}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
         storeSettings={storeSettings}
       />
     </div>

@@ -114,16 +114,21 @@ app.post('/api/products', upload.single('image'), (req, res) => {
     // Calculation logic
     const numPackCost = parseFloat(pack_cost) || 0;
     const numPackQty = Math.max(1, parseInt(pack_qty, 10) || 1);
-    
+
     // Calculated unit cost: fallback to direct cost_price or calculated from pack
     const calculatedUnitCost = cost_price !== undefined && cost_price !== ''
-      ? parseFloat(cost_price)
+      ? (parseFloat(cost_price) || 0)
       : (numPackCost > 0 ? Number((numPackCost / numPackQty).toFixed(2)) : 0);
 
-    const numProfit = parseFloat(profit_margin) || 0;
-    const calculatedSellPrice = sell_price !== undefined && sell_price !== ''
-      ? parseFloat(sell_price)
-      : Number((calculatedUnitCost + numProfit).toFixed(2));
+    const parsedMargin = profit_margin !== undefined && profit_margin !== '' ? parseFloat(profit_margin) : NaN;
+    const parsedSell = sell_price !== undefined && sell_price !== '' ? parseFloat(sell_price) : NaN;
+
+    const calculatedSellPrice = !isNaN(parsedSell)
+      ? parsedSell
+      : Number((calculatedUnitCost + (!isNaN(parsedMargin) ? parsedMargin : 0)).toFixed(2));
+    const numProfit = !isNaN(parsedMargin) && (parsedMargin !== 0 || calculatedSellPrice === calculatedUnitCost)
+      ? parsedMargin
+      : Number((calculatedSellPrice - calculatedUnitCost).toFixed(2));
 
     const initialStock = parseInt(stock_qty, 10) || 0;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
@@ -157,7 +162,7 @@ app.post('/api/products', upload.single('image'), (req, res) => {
       db.prepare(`
         INSERT INTO stock_logs (product_id, change_qty, type, total_cost, unit_cost, note)
         VALUES (?, ?, 'PURCHASE_IN', ?, ?, 'Initial Stock')
-      `).run(newId, initialStock, numPackCost || (calculatedUnitCost * initialStock), calculatedUnitCost);
+      `).run(newId, initialStock, Number((calculatedUnitCost * initialStock).toFixed(2)), calculatedUnitCost);
     }
 
     const created = db.prepare('SELECT * FROM products WHERE id = ?').get(newId);
@@ -193,6 +198,12 @@ app.put('/api/products/:id', upload.single('image'), (req, res) => {
     } = req.body;
 
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : existing.image_url;
+    const numCost = parseFloat(cost_price) || 0;
+    const numSell = parseFloat(sell_price) || 0;
+    const parsedMargin = profit_margin !== undefined && profit_margin !== '' ? parseFloat(profit_margin) : NaN;
+    const numMargin = !isNaN(parsedMargin) && (parsedMargin !== 0 || numSell === numCost)
+      ? parsedMargin
+      : Number((numSell - numCost).toFixed(2));
 
     db.prepare(`
       UPDATE products SET
@@ -216,9 +227,9 @@ app.put('/api/products/:id', upload.single('image'), (req, res) => {
       imageUrl,
       parseFloat(pack_cost) || 0,
       parseInt(pack_qty, 10) || 1,
-      parseFloat(cost_price) || 0,
-      parseFloat(profit_margin) || 0,
-      parseFloat(sell_price) || 0,
+      numCost,
+      numMargin,
+      numSell,
       parseInt(stock_qty, 10) || 0,
       parseInt(min_stock, 10) || 5,
       id
@@ -227,6 +238,9 @@ app.put('/api/products/:id', upload.single('image'), (req, res) => {
     const updated = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
     res.json(updated);
   } catch (err) {
+    if (err.message.includes('UNIQUE constraint failed: products.barcode')) {
+      return res.status(400).json({ error: 'บาร์โค้ดนี้มีอยู่ในระบบแล้ว' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -235,7 +249,7 @@ app.put('/api/products/:id', upload.single('image'), (req, res) => {
 app.post('/api/products/:id/restock', (req, res) => {
   try {
     const { id } = req.params;
-    const { add_qty, batch_cost, update_cost_price, note } = req.body;
+    const { add_qty, unit_cost, batch_cost, update_cost_price, note } = req.body;
 
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
     if (!product) {
@@ -247,8 +261,23 @@ app.post('/api/products/:id/restock', (req, res) => {
       return res.status(400).json({ error: 'Invalid quantity' });
     }
 
-    const totalBatchCost = parseFloat(batch_cost) || 0;
-    const batchUnitCost = totalBatchCost > 0 ? Number((totalBatchCost / qtyToAdd).toFixed(2)) : product.cost_price;
+    let batchUnitCost = product.cost_price || 0;
+    if (unit_cost !== undefined && unit_cost !== '' && unit_cost !== null && !isNaN(parseFloat(unit_cost))) {
+      batchUnitCost = Math.max(0, Number(parseFloat(unit_cost).toFixed(2)));
+    } else if (batch_cost !== undefined && batch_cost !== '' && !isNaN(parseFloat(batch_cost))) {
+      const legacyBatch = parseFloat(batch_cost);
+      if (legacyBatch >= 0) {
+        batchUnitCost = Number((legacyBatch / qtyToAdd).toFixed(2));
+      }
+    }
+    const totalBatchCost = Number((batchUnitCost * qtyToAdd).toFixed(2));
+
+    const existingMargin =
+      product.profit_margin !== undefined &&
+      product.profit_margin !== null &&
+      (product.profit_margin !== 0 || product.sell_price === product.cost_price)
+        ? product.profit_margin
+        : Number(((product.sell_price || 0) - (product.cost_price || 0)).toFixed(2));
 
     // Transaction for atomic stock update and logging
     const restockTx = db.transaction(() => {
@@ -256,19 +285,20 @@ app.post('/api/products/:id/restock', (req, res) => {
       let newCostPrice = product.cost_price;
       let newSellPrice = product.sell_price;
 
-      if (update_cost_price && totalBatchCost > 0) {
+      if (update_cost_price) {
         newCostPrice = batchUnitCost;
-        newSellPrice = Number((newCostPrice + product.profit_margin).toFixed(2));
+        newSellPrice = Number((newCostPrice + existingMargin).toFixed(2));
       }
 
       db.prepare(`
         UPDATE products SET
           stock_qty = ?,
           cost_price = ?,
+          profit_margin = ?,
           sell_price = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(newStock, newCostPrice, newSellPrice, id);
+      `).run(newStock, newCostPrice, existingMargin, newSellPrice, id);
 
       db.prepare(`
         INSERT INTO stock_logs (product_id, change_qty, type, total_cost, unit_cost, note)
@@ -354,8 +384,10 @@ app.post('/api/orders', (req, res) => {
       const totalProfit = Number((totalAmount - totalCost).toFixed(2));
 
       const received = parseFloat(cash_received) || totalAmount;
-      const change = payment_method === 'CASH' ? Math.max(0, Number((received - totalAmount).toFixed(2))) : 0;
-      const orderNo = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
+      const isCashPayment = payment_method === 'CASH' || payment_method === 'เงินสด';
+      const change = isCashPayment ? Math.max(0, Number((received - totalAmount).toFixed(2))) : 0;
+      const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+      const orderNo = `INV-${localNow.toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
 
       // Insert order
       const orderStmt = db.prepare(`
@@ -588,8 +620,9 @@ app.get('/api/expenses', (req, res) => {
 // POST new operational expense
 app.post('/api/expenses', (req, res) => {
   try {
+    const localToday = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     const {
-      expense_date = new Date().toISOString().slice(0, 10),
+      expense_date = localToday,
       category = 'อื่นๆ',
       title,
       amount,
@@ -597,8 +630,10 @@ app.post('/api/expenses', (req, res) => {
       note = ''
     } = req.body;
 
-    if (!title || !amount) {
-      return res.status(400).json({ error: 'Title and amount are required' });
+    const cleanTitle = typeof title === 'string' ? title.trim() : '';
+    const parsedAmount = parseFloat(amount);
+    if (!cleanTitle || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'กรุณากรอกคำอธิบายและจำนวนเงินที่มากกว่า 0' });
     }
 
     const stmt = db.prepare(`
@@ -609,8 +644,8 @@ app.post('/api/expenses', (req, res) => {
     const result = stmt.run(
       expense_date,
       category,
-      title.trim(),
-      parseFloat(amount) || 0,
+      cleanTitle,
+      Number(parsedAmount.toFixed(2)),
       receipt_no.trim(),
       note.trim()
     );

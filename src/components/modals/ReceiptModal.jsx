@@ -1,5 +1,6 @@
 import React from 'react';
 import { Receipt, X, Printer, Check } from 'lucide-react';
+import { parseUtcDate } from '../../utils/date';
 
 export default function ReceiptModal({
   order,
@@ -53,7 +54,7 @@ export default function ReceiptModal({
             <p className="text-[10px] text-emerald-700 font-sans font-bold pt-0.5">ใบกำกับภาษีอย่างย่อ (ABB)</p>
             <p className="text-[10px] text-[#8C948E] font-mono">เลขที่: {order.order_no}</p>
             <p className="text-[10px] text-[#8C948E]">
-              {new Date(order.created_at).toLocaleString('th-TH')}
+              {parseUtcDate(order.created_at).toLocaleString('th-TH')}
             </p>
           </div>
 
@@ -94,11 +95,11 @@ export default function ReceiptModal({
               </span>
             </div>
 
-            {order.change_amount > 0 && (
+            {(order.cash_received > 0 || order.change_amount > 0) && (
               <>
                 <div className="flex justify-between text-[#717672] text-xs">
                   <span>รับเงินมา</span>
-                  <span className="font-mono text-[#181A18]">฿{(order.cash_received || 0).toFixed(2)}</span>
+                  <span className="font-mono text-[#181A18]">฿{(order.cash_received || order.total_amount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-emerald-700 text-xs">
                   <span>เงินทอน</span>
